@@ -1,0 +1,108 @@
+import curses
+import random
+
+def init_grid():
+    grid = [[0] * 4 for _ in range(4)]
+    add_random_tile(grid)
+    add_random_tile(grid)
+    return grid
+
+def add_random_tile(grid):
+    empty_cells = [(i, j) for i in range(4) for j in range(4) if grid[i][j] == 0]
+    if empty_cells:
+        i, j = random.choice(empty_cells)
+        grid[i][j] = 2 if random.random() < 0.9 else 4
+
+def draw_grid(stdscr, grid):
+    stdscr.clear()
+    for i in range(4):
+        for j in range(4):
+            value = grid[i][j]
+            if value == 0:
+                stdscr.addstr(i * 2, j * 6, "     ")
+            else:
+                stdscr.addstr(i * 2, j * 6, f"{value:5}")
+        stdscr.addstr(i * 2 + 1, 0, "-" * 24)
+    stdscr.refresh()
+
+def move_left(grid):
+    moved = False
+    for i in range(4):
+        row = [x for x in grid[i] if x != 0]
+        for j in range(len(row) - 1):
+            if row[j] == row[j + 1]:
+                row[j] *= 2
+                row[j + 1] = 0
+        row = [x for x in row if x != 0]
+        row += [0] * (4 - len(row))
+        if row != grid[i]:
+            moved = True
+        grid[i] = row
+    return moved
+
+def move_right(grid):
+    grid[:] = [row[::-1] for row in grid]
+    moved = move_left(grid)
+    grid[:] = [row[::-1] for row in grid]
+    return moved
+
+def move_up(grid):
+    grid[:] = list(map(list, zip(*grid)))
+    moved = move_left(grid)
+    grid[:] = list(map(list, zip(*grid)))
+    return moved
+
+def move_down(grid):
+    grid[:] = list(map(list, zip(*grid)))
+    moved = move_right(grid)
+    grid[:] = list(map(list, zip(*grid)))
+    return moved
+
+def is_game_over(grid):
+    for i in range(4):
+        for j in range(4):
+            if grid[i][j] == 0:
+                return False
+            if j < 3 and grid[i][j] == grid[i][j + 1]:
+                return False
+            if i < 3 and grid[i][j] == grid[i + 1][j]:
+                return False
+    return True
+
+def has_won(grid):
+    return any(2048 in row for row in grid)
+
+def main(stdscr):
+    curses.curs_set(0)
+    grid = init_grid()
+    draw_grid(stdscr, grid)
+    
+    while True:
+        key = stdscr.getch()
+        moved = False
+        
+        if key == curses.KEY_LEFT:
+            moved = move_left(grid)
+        elif key == curses.KEY_RIGHT:
+            moved = move_right(grid)
+        elif key == curses.KEY_UP:
+            moved = move_up(grid)
+        elif key == curses.KEY_DOWN:
+            moved = move_down(grid)
+        elif key == ord('q'):
+            break
+        
+        if moved:
+            add_random_tile(grid)
+            draw_grid(stdscr, grid)
+        
+        if has_won(grid):
+            stdscr.addstr(10, 0, "You win! Press any key to exit.")
+            stdscr.getch()
+            break
+        elif is_game_over(grid):
+            stdscr.addstr(10, 0, "Game over! Press any key to exit.")
+            stdscr.getch()
+            break
+
+curses.wrapper(main)
